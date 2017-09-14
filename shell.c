@@ -6,6 +6,7 @@
 #include<sys/wait.h>
 
 #define HIST_BUFF_SIZE 10
+#define MAX_ARGS 50
 char* read_line();
 char** get_tokens(char*);
 void prompt(void);
@@ -44,7 +45,7 @@ int main(){
 void prompt(){
 	int status = 1;
   while(status){
-    printf("> ");
+    printf("$");
     char* command = read_line();
 		top = (top + 1) % HIST_BUFF_SIZE;
     initialize_hist_elem(command);
@@ -72,12 +73,12 @@ char* read_line(){
 }
 
 char** get_tokens(char* command){
-  char** tokens = malloc(64 * sizeof(char*)); //change from 64 size
-  char* token = strtok(command, " \t\r\n\a");
+  char** tokens = malloc(MAX_ARGS * sizeof(char*)); //change from 64 size
+  char* token = strtok(command, " \n");
   int index = 0;
   while(token != NULL){
     tokens[index++] = token;
-    token = strtok(NULL, " \t\r\n\a");
+    token = strtok(NULL, " \n");
   }
 
   tokens[index] = NULL;
@@ -149,9 +150,19 @@ void clear_history(){
 	}
 }
 
+int invalid_offset(int offset, int start){
+  if(offset > 10  || history[(start % HIST_BUFF_SIZE + HIST_BUFF_SIZE) % HIST_BUFF_SIZE] == NULL){
+    printf("Invalid Offset. Either hist buffer has elements lesser than offset or offset > 10\n");
+    return 1;
+  }
+  return 0;
+}
+
 void display_history_offset(char** params){
 	int offset = atoi(params[1]);
   int start = top - offset + 1;		
+  if(invalid_offset(offset, start))
+    return;
 	for(int i = (start % HIST_BUFF_SIZE + HIST_BUFF_SIZE) % HIST_BUFF_SIZE; ; i = (i + 1) % HIST_BUFF_SIZE){
 		printf("%s", history[i]);				
 		if(i == top)
