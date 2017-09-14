@@ -5,6 +5,7 @@
 #include<stdint.h>
 #include<sys/wait.h>
 
+#define HIST_BUFF_SIZE 10
 char* read_line();
 char** get_tokens(char*);
 void prompt(void);
@@ -14,20 +15,21 @@ int execute_history(char**);
 int execute_cd(char**);
 int execute_exit(char**);
 char** history;
-int top = 0;
-int head = 0;
+int top = -1;
+int head = -1;
 int main(){
 	prompt();
 }
 
 void prompt(){
-	history = malloc(5 * sizeof(char*));
-	for(int i = 0; i < 5; i++)
+	history = malloc(HIST_BUFF_SIZE * sizeof(char*));
+	for(int i = 0; i < HIST_BUFF_SIZE; i++)
 		history[i] = NULL;
 	int status = 1;
   while(status){
     printf("> ");
     char* command = read_line();
+		top = (top + 1) % HIST_BUFF_SIZE;
 		if(history[top] != NULL){
 			free(history[top]);
 			history[top] = malloc(sizeof(char)*strlen(command));
@@ -36,10 +38,12 @@ void prompt(){
 			history[top] = malloc(sizeof(char)*strlen(command)); //being call twice?
 		}
 		strcpy(history[top], command);
-		top = (top + 1) % 5;
 		if(top == head){
-			head = (head + 1) % 5;
+			head = (head + 1) % HIST_BUFF_SIZE;
 		}
+    if(head == -1){
+      head = 0;
+    }
     char** tokens = get_tokens(command);
     status = run_command(tokens);
     free(command);
@@ -121,30 +125,30 @@ int execute_history(char** params){
 	
  if(params[1] == NULL){
 		int index = 0;
-		for(int i = head; ; i = (i + 1) % 5){
+		for(int i = head; ; i = (i + 1) % HIST_BUFF_SIZE){
+			printf("%d %s", index++, history[i]);
 			if(i == top)
 				break;
-			printf("%d %s", index++, history[i]);
 		}				
 	}
 	
 	else if(strcmp(params[1], "-c") == 0){
-		for(int i = 0; i < 5; i++){
+		for(int i = 0; i < HIST_BUFF_SIZE; i++){
 			if(history[i] != NULL){
 			free(history[i]);
 			history[i] = NULL;
-			head = 0;
-			top = 0;	
-			printf("DOne");	
+			head = -1;
+			top = -1;	
 		}		
 		}
 	}
 	else{
-		int start = top - (int)(uintptr_t)params[1];			
-		for(int i = start; ; i = (i + 1) % 5){
+		int offset = atoi(params[1]);
+		int start = top - offset + 1;		
+		for(int i = (start % HIST_BUFF_SIZE + HIST_BUFF_SIZE) % HIST_BUFF_SIZE; ; i = (i + 1) % HIST_BUFF_SIZE){
+			printf("%s", history[i]);				
 			if(i == top)
 				break;
-			printf("%s", history[i]);				
 		}				
 	}
 	return 1;
