@@ -1,9 +1,18 @@
 #include<stdio.h>
+#include<stdlib.h>
 #include<unistd.h>
 #include<string.h>
+#include<stdint.h>
+#include<sys/wait.h>
 
 char* read_line();
 char** get_tokens(char*);
+void prompt(void);
+int run_command(char**);
+int run_exec(char**);
+int execute_history(char**);
+int execute_cd(char**);
+int execute_exit(char**);
 char** history;
 int top = 0;
 int main(){
@@ -11,14 +20,14 @@ int main(){
 }
 
 void prompt(){
-	history = malloc(100 * sizeof(char*));
+	history = malloc(10 * sizeof(char*));
 	int status = 1;
   while(status){
     printf("> ");
     char* command = read_line();
-		history[top] = malloc(sizeof(char)*strlen(command));
-		strcpy(history[top++], command);
-		printf("%s", history[0]);
+		history[top] = malloc(sizeof(char)*strlen(command)); //being call twice?
+		strcpy(history[top], command);
+		top = (top + 1) % 10;
     char** tokens = get_tokens(command);
     status = run_command(tokens);
     free(command);
@@ -48,13 +57,13 @@ char** get_tokens(char* command){
 
 int run_command(char** params){
   if(strcmp(*params, "cd") == 0)
-    execute_cd(params);
+    return execute_cd(params);
   else if(strcmp(*params, "history") == 0)
-    execute_history(params);
+    return execute_history(params);
   else if(strcmp(*params, "exit") == 0)
-    execute_exit(params);
+    return execute_exit(params);
   else
-    run_exec(params);  
+    return run_exec(params);  
 }
 
 
@@ -64,7 +73,7 @@ int run_exec(char** params){
     // child process
 
     if(execvp(*params,params) == -1){
-      printf("Exec failed!");
+      printf("Invalid command\n");
       exit(1);
     }
   }
@@ -92,20 +101,29 @@ int execute_cd(char** params){
       printf("chdir did not work correctly");
     }
   }
+	return 1;
 }
 
 int execute_history(char** params){
-	if(params[1] == NULL){
-		printf("IN hereerer");
+	
+ if(params[1] == NULL){
 		for(int i = 0; i < top; i++){
-			printf("%s\n", history[i]);
+			printf("%d %s", i, history[i]);
 		}				
+	}
+	
+	else if(strcmp(params[1], "-c") == 0){
+		for(int i = 0; history[i] != NULL; i++){
+			free(history[i]);	
+			printf("DOne");	
+		}		
 	}
 	else{
-		for(int i = params[1]; i < top; i++){
-			printf("%s\n", history[i]);				
+		for(int i = (int)(uintptr_t)params[1]; i < top; i++){
+			printf("%s", history[i]);				
 		}				
 	}
+	return 1;
 }
 
 int execute_exit(char** params){
