@@ -15,24 +15,37 @@ int execute_cd(char**);
 int execute_exit(char**);
 char** history;
 int top = 0;
+int head = 0;
 int main(){
 	prompt();
 }
 
 void prompt(){
-	history = malloc(10 * sizeof(char*));
+	history = malloc(5 * sizeof(char*));
+	for(int i = 0; i < 5; i++)
+		history[i] = NULL;
 	int status = 1;
   while(status){
     printf("> ");
     char* command = read_line();
-		history[top] = malloc(sizeof(char)*strlen(command)); //being call twice?
+		if(history[top] != NULL){
+			free(history[top]);
+			history[top] = malloc(sizeof(char)*strlen(command));
+		}
+		else{
+			history[top] = malloc(sizeof(char)*strlen(command)); //being call twice?
+		}
 		strcpy(history[top], command);
-		top = (top + 1) % 10;
+		top = (top + 1) % 5;
+		if(top == head){
+			head = (head + 1) % 5;
+		}
     char** tokens = get_tokens(command);
     status = run_command(tokens);
     free(command);
     free(tokens);
   }
+	free(history);
 }
 
 char* read_line(){
@@ -72,7 +85,7 @@ int run_exec(char** params){
   if(pid == 0){
     // child process
 
-    if(execvp(*params,params) == -1){
+    if(execvp(*params,params) == -1){  //change call
       printf("Invalid command\n");
       exit(1);
     }
@@ -107,19 +120,30 @@ int execute_cd(char** params){
 int execute_history(char** params){
 	
  if(params[1] == NULL){
-		for(int i = 0; i < top; i++){
-			printf("%d %s", i, history[i]);
+		int index = 0;
+		for(int i = head; ; i = (i + 1) % 5){
+			if(i == top)
+				break;
+			printf("%d %s", index++, history[i]);
 		}				
 	}
 	
 	else if(strcmp(params[1], "-c") == 0){
-		for(int i = 0; history[i] != NULL; i++){
-			free(history[i]);	
+		for(int i = 0; i < 5; i++){
+			if(history[i] != NULL){
+			free(history[i]);
+			history[i] = NULL;
+			head = 0;
+			top = 0;	
 			printf("DOne");	
 		}		
+		}
 	}
 	else{
-		for(int i = (int)(uintptr_t)params[1]; i < top; i++){
+		int start = top - (int)(uintptr_t)params[1];			
+		for(int i = start; ; i = (i + 1) % 5){
+			if(i == top)
+				break;
 			printf("%s", history[i]);				
 		}				
 	}
