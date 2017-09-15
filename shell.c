@@ -26,15 +26,22 @@ void initialize_hist_buff(){
 		history[i] = NULL;
 }
 
-void initialize_hist_elem(char* command){
+void populate_hist_elem(char* command){
+	top = (top + 1) % HIST_BUFF_SIZE;
 	if(history[top] != NULL){
 		free(history[top]);
 		history[top] = malloc(sizeof(char)*strlen(command));
   }
 	else
 		history[top] = malloc(sizeof(char)*strlen(command)); 
-	
   strcpy(history[top], command);
+  //check if circular array is full
+	if(top == head)
+		head = (head + 1) % HIST_BUFF_SIZE;
+		
+  //check if circular array is empty
+  if(head == -1)
+      head = 0;
 }
 
 int main(){
@@ -47,19 +54,19 @@ void prompt(){
   while(status){
     printf("$");
     char* command = read_line();
-		top = (top + 1) % HIST_BUFF_SIZE;
-    initialize_hist_elem(command);
-    //check if circular array is full
-		if(top == head)
-			head = (head + 1) % HIST_BUFF_SIZE;
-		
-    //check if circular array is empty
-    if(head == -1)
-      head = 0;
-    
+    char* store_command = malloc(sizeof(char)*strlen(command));
+    strcpy(store_command, command);
     char** tokens = get_tokens(command);
-    status = run_command(tokens);
+    if(strcmp(tokens[0], "history") == 0 && tokens[1] != NULL && strcmp(tokens[1], "-c") != 0){
+      status = run_command(tokens);
+      populate_hist_elem(store_command);
+    }
+    else{
+      populate_hist_elem(store_command);
+      status = run_command(tokens);
+    }
     free(command);
+    free(store_command);
     free(tokens);
   }
 	free(history);
@@ -150,7 +157,7 @@ void clear_history(){
 	}
 }
 
-int invalid_offset(int offset, int start){
+int invalid_offset(int offset, int start){    //fix offset
   if(offset > 10  || history[(start % HIST_BUFF_SIZE + HIST_BUFF_SIZE) % HIST_BUFF_SIZE] == NULL){
     printf("Invalid Offset. Either hist buffer has elements lesser than offset or offset > 10\n");
     return 1;
@@ -160,24 +167,21 @@ int invalid_offset(int offset, int start){
 
 void display_history_offset(char** params){
 	int offset = atoi(params[1]);
-  int start = top - offset + 1;		
+  int start = head + offset;		
   if(invalid_offset(offset, start))
     return;
-	for(int i = (start % HIST_BUFF_SIZE + HIST_BUFF_SIZE) % HIST_BUFF_SIZE; ; i = (i + 1) % HIST_BUFF_SIZE){
-		printf("%s", history[i]);				
-		if(i == top)
-			break;
-	}				
+
+  int position = (start % HIST_BUFF_SIZE + HIST_BUFF_SIZE) % HIST_BUFF_SIZE;
+	char** tokens = get_tokens(history[position]);
+  run_command(tokens);
 }
 
 int execute_history(char** params){
 	
- if(params[1] == NULL)
+  if(params[1] == NULL)
    display_history();
-	
 	else if(strcmp(params[1], "-c") == 0)
 	  clear_history();
-	
   else
     display_history_offset(params);
 	
