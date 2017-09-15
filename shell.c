@@ -140,7 +140,8 @@ int execute_cd(char** params){
 void display_history(){
 	int index = 0;
 	for(int i = head; ; i = (i + 1) % HIST_BUFF_SIZE){
-		printf("%d %s", index++, history[i]);
+		history[i][strcspn(history[i],"\n")] = '\0';
+    printf("%d %s\n", index++, history[i]);
 		if(i == top)
 			break;
 	}				
@@ -157,8 +158,8 @@ void clear_history(){
 	}
 }
 
-int invalid_offset(int offset, int start){    //fix offset
-  if(offset > 10  || history[(start % HIST_BUFF_SIZE + HIST_BUFF_SIZE) % HIST_BUFF_SIZE] == NULL){
+int invalid_offset(int offset, int start){
+  if(offset < 0 || offset > 10){
     printf("Invalid Offset. Either hist buffer has elements lesser than offset or offset > 10\n");
     return 1;
   }
@@ -172,8 +173,11 @@ void display_history_offset(char** params){
     return;
 
   int position = (start % HIST_BUFF_SIZE + HIST_BUFF_SIZE) % HIST_BUFF_SIZE;
-	char** tokens = get_tokens(history[position]);
+  char* tokenize_command = malloc(sizeof(char)*strlen(history[position]));
+  strcpy(tokenize_command, history[position]);
+	char** tokens = get_tokens(tokenize_command);
   run_command(tokens);
+  free(tokenize_command);
 }
 
 int execute_history(char** params){
