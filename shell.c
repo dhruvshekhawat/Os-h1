@@ -7,6 +7,7 @@
 
 #define HIST_BUFF_SIZE 10
 #define MAX_ARGS 50
+
 char* read_line();
 char** get_tokens(char*, char*);
 void prompt(void);
@@ -35,11 +36,8 @@ void populate_hist_elem(char* command){
 	else
 		history[top] = malloc(sizeof(char)*strlen(command)); 
   strcpy(history[top], command);
-  //check if circular array is full
 	if(top == head)
 		head = (head + 1) % HIST_BUFF_SIZE;
-		
-  //check if circular array is empty
   if(head == -1)
       head = 0;
 }
@@ -49,77 +47,34 @@ int main(){
 	prompt();
 }
 
-  
-void exec_pipes(char** pipe_commands){//change pipe variable names
-  int len = 0;
-  int status;
-  char*** tokens = malloc(sizeof(char**)*100);//free this gracefully
-  for(int i = 0; pipe_commands[i]!=NULL;i++){
-    tokens[i] = get_tokens(pipe_commands[i], " \n");
-  }
-  loop_pipe(tokens);
-  /*printf("LEEEEEEEEEEEEN %d\n",len);
-  int pipes[(len-1)*2];
-  for(int i = 0; i< len;i=i+2)
-    pipe(pipes + i);
-  printf("Passed this");
-  for(int i=0, j=-2; i<len;i++, j=j+2){
-    printf("In here i is %d, j is %d\n", i, j);
-    if(fork() == 0){
-      if(i == 0)
-        dup2(pipes[1], 1);
-      else if(i == len - 1)
-          dup2(pipes[j], 0);
-      else{
-          printf("in elseeeee, val of j is %d\n", j);
-          dup2(pipes[j], 0);
-          dup2(pipes[j+3], 1);
-      }
-      for(int a =0; a < (len-1)*2;a++)
-        close(pipes[a]);
-      execvp(*tokens[i], tokens[i]);
-    }
-  }
-  printf("OUUUUUUT HEEREEEEEEEEEEEEEEEE!");
-  for(int b =0; b < (len-1)*2; b++)
-    close(pipes[b]);
-
-  for(int c = 0; c < len; c++)
-    wait(&status);
-  free(tokens);
-  tokens = NULL;
-  printf("LAST GEEEEEEEEERE");
-*/}
-void    loop_pipe(char ***cmd) 
-{
-  int   p[2];
+int run_exec(char** tokens){
+  char*** pipe_commands = malloc(sizeof(char**)*100);
+  for(int i = 0; tokens[i] != NULL;i++)
+    pipe_commands[i] = get_tokens(tokens[i], " \n");
+  int p[2];
   pid_t pid;
-  int   fd_in = 0;
-
-  while (*cmd != NULL)
-    {
-      pipe(p);
-      if ((pid = fork()) == -1)
-        {
-          exit(EXIT_FAILURE);
-        }
-      else if (pid == 0)
-        { printf("IIIIIIIIN here");
-          dup2(fd_in, 0); //change the input according to the old one 
-          if (*(cmd + 1) != NULL)
-            dup2(p[1], 1);
-          close(p[0]);
-          execvp((*cmd)[0], *cmd);
-          exit(EXIT_FAILURE);
-        }
-      else
-        {
-          wait(NULL);
-          close(p[1]);
-          fd_in = p[0]; //save the input for the next command
-          cmd++;
-        }
+  int fd_in = 0;
+  while (*pipe_commands != NULL){
+    pipe(p);
+    if((pid = fork()) == -1)
+      exit(EXIT_FAILURE);
+    else if (pid == 0){
+      dup2(fd_in, 0);
+      if(*(pipe_commands + 1) != NULL)
+        dup2(p[1], 1);
+      close(p[0]);
+      execvp((*pipe_commands)[0], *pipe_commands);
+      exit(EXIT_FAILURE);
     }
+    else{
+      wait(NULL);
+      close(p[1]);
+      fd_in = p[0]; 
+      pipe_commands++;
+    }
+  }
+  //free(pipe_commands);
+  return 1;
 }
 
 void prompt(){
@@ -129,27 +84,13 @@ void prompt(){
     char* command = read_line();
     char* store_command = malloc(sizeof(char)*strlen(command));
     strcpy(store_command, command);
-    if(strchr(command, '|') != NULL){
-      populate_hist_elem(store_command);
-      char** pipe_commands = get_tokens(command, "|\n");
-      exec_pipes(pipe_commands);
-      free(pipe_commands);
-    }
-    else{
-      char** tokens = get_tokens(command, " \n");
-      if(strcmp(tokens[0], "history") == 0 && tokens[1] != NULL && strcmp(tokens[1], "-c") != 0){
-        status = run_command(tokens);
-        populate_hist_elem(store_command);
-     }
-      else{
-        populate_hist_elem(store_command);
-        status = run_command(tokens);
-      }
-      free(tokens);
-    }
-      free(command);
-      free(store_command);
-    }
+    char** tokens = get_tokens(command, "|\n");
+    status = run_command(tokens);
+    populate_hist_elem(store_command);
+    free(tokens);
+    free(command);
+    free(store_command);
+  }
 	free(history);
 }
 
@@ -174,36 +115,17 @@ char** get_tokens(char* command, char* delimiter){
 }
 
 int run_command(char** params){
-  if(strcmp(*params, "cd") == 0)
-    return execute_cd(params);
-  else if(strcmp(*params, "history") == 0)
-    return execute_history(params);
-  else if(strcmp(*params, "exit") == 0)
-    return execute_exit(params);
+  char* duplicate = malloc(sizeof(char)*strlen(params[0]));
+  strcpy(duplicate, params[0]);
+  char** builtin = get_tokens(duplicate," \n");
+  if(strcmp(*builtin, "cd") == 0)
+    return execute_cd(builtin);
+  else if(strcmp(*builtin, "history") == 0)
+    return execute_history(builtin);
+  else if(strcmp(*builtin, "exit") == 0)
+    return execute_exit(builtin);
   else
     return run_exec(params);  
-}
-
-
-int run_exec(char** params){
-  pid_t pid = fork();
-  if(pid == 0){
-    if(execvp(*params, params) == -1){  //change call
-      printf("Invalid command\n");
-      exit(1);
-    }
-  }
-  else if(pid > 0){
-    int returnCode;
-    waitpid(pid, &returnCode, 0);
-    if(returnCode == 1)
-      printf("Child process terminated with error");
-   
-  }
-  else
-    printf("Error in Forking");
-  
-	return 1;
 }
 
 int execute_cd(char** params){
@@ -219,13 +141,23 @@ int execute_cd(char** params){
 }
 
 void display_history(){
+  if(history[0] == NULL){
+    printf("%d %s\n", 0, "history");
+    return;
+  }
 	int index = 0;
-	for(int i = head; ; i = (i + 1) % HIST_BUFF_SIZE){
+  int i;
+  if(history[HIST_BUFF_SIZE - 1] == NULL)
+    i = 0;
+  else
+    i = (head + 1) % HIST_BUFF_SIZE;
+	for(; ; i = (i + 1) % HIST_BUFF_SIZE){
 		history[i][strcspn(history[i],"\n")] = '\0';
     printf("%d %s\n", index++, history[i]);
 		if(i == top)
 			break;
-	}				
+	}	
+  printf("%d %s\n", index, "history");
 }
 
 void clear_history(){
@@ -240,7 +172,7 @@ void clear_history(){
 }
 
 int invalid_offset(int offset, int start){
-  if(offset < 0 || offset > 10){
+  if(offset < 0 || offset > HIST_BUFF_SIZE){
     printf("Invalid Offset. Either hist buffer has elements lesser than offset or offset > 10\n");
     return 1;
   }
@@ -248,6 +180,8 @@ int invalid_offset(int offset, int start){
 }
 
 void display_history_offset(char** params){
+  if(history[0] == NULL)
+    return;
 	int offset = atoi(params[1]);
   int start = head + offset;		
   if(invalid_offset(offset, start))
@@ -256,20 +190,18 @@ void display_history_offset(char** params){
   int position = (start % HIST_BUFF_SIZE + HIST_BUFF_SIZE) % HIST_BUFF_SIZE;
   char* tokenize_command = malloc(sizeof(char)*strlen(history[position]));
   strcpy(tokenize_command, history[position]);
-	char** tokens = get_tokens(tokenize_command, " \n");
+	char** tokens = get_tokens(tokenize_command, "|\n");
   run_command(tokens);
   free(tokenize_command);
 }
 
 int execute_history(char** params){
-	
   if(params[1] == NULL)
    display_history();
 	else if(strcmp(params[1], "-c") == 0)
 	  clear_history();
   else
     display_history_offset(params);
-	
 	return 1;
 }
 
