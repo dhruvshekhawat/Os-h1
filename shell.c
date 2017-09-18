@@ -1,4 +1,4 @@
-//history offset forward loop, wrong offset, make cd work, handle infinte loops, implement exit, completely modify run_exec, , checkpatch, check weird cases and handle them all, make README
+// handle infinte loops, checkpatch, make README, exit and cd with args, push to github, test with tester.py, go through piazza again
 #include<stdio.h>
 #include<stdlib.h>
 #include<unistd.h>
@@ -8,7 +8,7 @@
 #include<errno.h>
 #include<ctype.h>
 
-#define HIST_BUFF_SIZE 100
+#define HIST_BUFF_SIZE 5
 #define MAX_ARGS 50
 
 char* read_line();
@@ -54,14 +54,14 @@ int main(){
 }
 
 int run_exec(char** tokens){
-        int p[2];
+        int read_end = 0;
+        int pipe[2];
         pid_t pid;
-        int fd_in = 0;
         while (*tokens != NULL){
                 char** pipe_command = get_tokens(*tokens, " \n");
                 if(strcmp(pipe_command[0], "cd") == 0){
                         execute_cd(pipe_command);
-                        fd_in = 0;
+                        read_end = 0;
                         tokens++;
                         free(pipe_command);
                 }
@@ -71,27 +71,29 @@ int run_exec(char** tokens){
                         return 0;
                 }
                 else{
-                        pipe(p);
-                        if((pid = fork()) == -1)
-                                exit(EXIT_FAILURE);
-                         else if (pid == 0){
-                                dup2(fd_in, 0);
+                        pipe(pipe);
+                        if((pid = fork()) == -1){
+                                printf("error: fork failed\n");
+                                exit(1);
+                        }
+                        else if (pid == 0){
                                 if(*(tokens + 1) != NULL)
-                                        dup2(p[1], 1);
-                                close(p[0]);
+                                        dup2(pipe[1], 1);
+                                dup2(read_end, 0);
+                                close(pipe[0]);
                                 if(strcmp(pipe_command[0],"history") == 0)
                                         execute_history(pipe_command);
                                 else if(strcmp(pipe_command[0], "exit") == 0)
                                         execute_exit(pipe_command);
                                 else if(execv(pipe_command[0], pipe_command) < 0)
                                         printf("error: %s\n", strerror(errno));
-                                exit(EXIT_FAILURE);
+                                exit(0);
                          }   
                          else{
                                 wait(NULL);
                                 free(pipe_command);
-                                close(p[1]);
-                                fd_in = p[0]; 
+                                close(pipe[1]);
+                                read_end = pipe[0]; 
                                 tokens++;
                         }
                  }
@@ -187,6 +189,10 @@ void clear_history(){
 }
 
 int invalid_offset(char* offset){
+        if(last_snapshot[HIST_BUFF_SIZE - 1] == NULL && atoi(offset) >= top){
+               printf("error: Offset value too high\n"); 
+               return 1;
+        }
         if(!numbers_only(offset) || atoi(offset) < 0 || atoi(offset) > HIST_BUFF_SIZE){
                 printf("error: Invalid Offset\n");
                 return 1;
