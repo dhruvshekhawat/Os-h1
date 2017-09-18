@@ -1,4 +1,4 @@
-//history offset forward loop, wrong offset, make cd work, use valigrind and remove memory errors, handle infinte loops, implement exit, completely modify run_exec, , checkpatch, check weird cases and handle them all, make README
+//history offset forward loop, wrong offset, make cd work, handle infinte loops, implement exit, completely modify run_exec, , checkpatch, check weird cases and handle them all, make README
 #include<stdio.h>
 #include<stdlib.h>
 #include<unistd.h>
@@ -54,53 +54,48 @@ int main(){
 }
 
 int run_exec(char** tokens){
-        int i;
-        int no_of_tokens = 0;
-        for(i = 0; tokens[i] != NULL; i++)
-                no_of_tokens++;
-        char*** pipe_commands = (char***)malloc(sizeof(char**)*(1 + no_of_tokens));
-        if(!pipe_commands)
-                printf("error: malloc failed line 57");
-
-        int j;
-        for(j = 0;j < no_of_tokens; j++)
-                pipe_commands[j] = get_tokens(tokens[j], " \n");
-        pipe_commands[j] = NULL;
         int p[2];
         pid_t pid;
         int fd_in = 0;
         while (*tokens != NULL){
                 char** pipe_command = get_tokens(*tokens, " \n");
-                pipe(p);
-                if((pid = fork()) == -1)
-                        exit(EXIT_FAILURE);
-                else if (pid == 0){
-                        dup2(fd_in, 0);
-                        if(*(tokens + 1) != NULL)
-                                dup2(p[1], 1);
-                        close(p[0]);
-                        if(strcmp(pipe_command[0],"history") == 0)
-                                execute_history(*pipe_commands);
-                        else if(strcmp(pipe_commands[0], "cd") == 0)
-                                execute_cd(*pipe_commands);
-                        else if(strcmp(pipe_commands[0], "exit") == 0)
-                                execute_exit(*pipe_commands);
-                        else if(execv(pipe_commands[0], *pipe_commands) < 0)
-                                printf("error: %s\n", strerror(errno));
-                        exit(EXIT_FAILURE);
-                }   
-                else{
-                        wait(NULL);
-                        close(p[1]);
-                        fd_in = p[0]; 
+                if(strcmp(pipe_command[0], "cd") == 0){
+                        execute_cd(pipe_command);
+                        fd_in = 0;
                         tokens++;
+                        free(pipe_command);
                 }
+                else if(strcmp(pipe_command[0], "exit") == 0){
+                        execute_exit(pipe_command);
+                        free(pipe_command);
+                        return 0;
+                }
+                else{
+                        pipe(p);
+                        if((pid = fork()) == -1)
+                                exit(EXIT_FAILURE);
+                         else if (pid == 0){
+                                dup2(fd_in, 0);
+                                if(*(tokens + 1) != NULL)
+                                        dup2(p[1], 1);
+                                close(p[0]);
+                                if(strcmp(pipe_command[0],"history") == 0)
+                                        execute_history(pipe_command);
+                                else if(strcmp(pipe_command[0], "exit") == 0)
+                                        execute_exit(pipe_command);
+                                else if(execv(pipe_command[0], pipe_command) < 0)
+                                        printf("error: %s\n", strerror(errno));
+                                exit(EXIT_FAILURE);
+                         }   
+                         else{
+                                wait(NULL);
+                                free(pipe_command);
+                                close(p[1]);
+                                fd_in = p[0]; 
+                                tokens++;
+                        }
+                 }
         }
-        int z;
-        for(z = 0; z < i; z++){
-                free(pipe_commands[z]);
-        }
-        free(pipe_commands);
         return 1;
 }
 
@@ -153,9 +148,11 @@ char** get_tokens(char* command, char* delimiter){
 }
 
 int execute_cd(char** params){
+        printf("reaching here for cd");
         if(params[1] == NULL)
                 printf("error: Expected arguments to cd\n");
         else{
+                printf("file name is %s\n", params[1]);
                 if(chdir(params[1]) != 0)
                         printf("error: chdir did not work correctly");
         }
