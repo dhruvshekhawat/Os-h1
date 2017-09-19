@@ -25,7 +25,7 @@ void initialize_hist_buff(void)
 
 	history = malloc(HIST_BUFF_SIZE * sizeof(char *));
 	if (!history)
-		printf("error: malloc failed line 30\n");
+		printf("error: malloc failed line 26\n");
 	for (i = 0; i < HIST_BUFF_SIZE; i++)
 		history[i] = NULL;
 }
@@ -37,9 +37,9 @@ void populate_hist_elem(char *command)
 		free(history[top]);
 	history[top] = malloc(sizeof(char)*(1 + strlen(command)));
 	if (!history[top])
-		printf("error: malloc failed line 41\n");
+		printf("error: malloc failed line 38\n");
 	if (strcpy(history[top], command) == NULL)
-		printf("error: strcpy failed on line 44\n");
+		printf("error: strcpy failed on line 41\n");
 	if (top == head)
 		head = (head + 1) % HIST_BUFF_SIZE;
 	if (head == -1)
@@ -116,14 +116,14 @@ void prompt(void)
 
 		printf("$");
 		if (!save_command)
-			printf("error: malloc failed line 101\n");
+			printf("error: malloc failed line 115\n");
 		if (strcpy(save_command, command) == NULL)
-			printf("error: strcpy failed on line 105\n");
+			printf("error: strcpy failed on line 120\n");
 		char **tokens = get_tokens(command, "|\n");
 
 		last_snapshot = malloc(HIST_BUFF_SIZE * sizeof(char *));
 		if (!last_snapshot)
-			printf("error: malloc failed line 106\n");
+			printf("error: malloc failed line 124\n");
 		memcpy(last_snapshot, history, sizeof(char *) * HIST_BUFF_SIZE);
 		populate_hist_elem(save_command);
 		status = run_exec(tokens);
@@ -152,7 +152,7 @@ char **get_tokens(char *command, char *delimiter)
 	char **tokens = malloc(MAX_ARGS * sizeof(char *));
 
 	if (!tokens)
-		printf("error: malloc failed line 128\n");
+		printf("error: malloc failed line 152\n");
 	while (token != NULL) {
 		tokens[index++] = token;
 		token = strtok(NULL, delimiter);
@@ -233,9 +233,9 @@ void display_history_offset(char **params)
 	char *tok_cmd = malloc(sizeof(char)*strlen(last_snapshot[position]));
 
 	if (!tok_cmd)
-		printf("error: malloc failed line 203\n");
+		printf("error: malloc failed line 233\n");
 	if (strcpy(tok_cmd, last_snapshot[position]) == NULL)
-		printf("error: strcpy failed on line 207\n");
+		printf("error: strcpy failed on line 237\n");
 	char **tokens = get_tokens(tok_cmd, "|\n");
 
 	loop_number++;
