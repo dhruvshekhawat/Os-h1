@@ -1,0 +1,30 @@
+WARNING: unnecessary whitespace before a quoted newline
+#66: FILE: shell.c:66:
++		char **pipe_command = get_tokens(*tokens, " \n");
+
+WARNING: else is not generally useful after a break or return
+#78: FILE: shell.c:78:
++			return return_code;
++		} else {
+
+WARNING: line over 80 characters
+#93: FILE: shell.c:93:
++				else if (execv(pipe_command[0], pipe_command) < 0)
+
+WARNING: Statements should start on a tabstop
+#96: FILE: shell.c:96:
++			 } else {
+
+WARNING: Statements should start on a tabstop
+#103: FILE: shell.c:103:
++		 }
+
+total: 0 errors, 5 warnings, 274 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+shell.c has style problems, please review.
+
+NOTE: If any of the errors are false positives, please report
+      them to the maintainer, see CHECKPATCH in MAINTAINERS.
